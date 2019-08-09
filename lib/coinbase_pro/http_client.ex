@@ -2,9 +2,37 @@ defmodule CoinbasePro.HTTPClient do
 
   @endpoint Application.get_env(:coinbasepro, :endpoint)
 
-  def get(url) do
-    HTTPoison.get("#{@endpoint}#{url}")
+  def get(url, headers \\ []) do
+    HTTPoison.get("#{@endpoint}#{url}", headers)
     |> parse_coinbase_response()
+  end
+
+  def get(url, api_key, api_secret, api_passphrase) do
+
+    timestamp = DateTime.utc_now() |> DateTime.to_unix(:second) |> Integer.to_string()
+    signature = sign_request(timestamp, "GET", url, "", api_secret)
+
+    headers = [
+      {"CB-ACCESS-KEY", api_key},
+      {"CB-ACCESS-SIGN", signature},
+      {"CB-ACCESS-TIMESTAMP", timestamp},
+      {"CB-ACCESS-PASSPHRASE", api_passphrase}
+    ]
+    
+    get(url, headers)
+
+  end
+
+  def sign_request(timestamp, method, url, body, secret) do
+    signature_string = timestamp <> method <> url <> body
+
+    signature =
+      :crypto.hmac(
+        :sha256,
+        secret,
+        signature_string
+      )
+      |> Base.encode64()
   end
 
   #

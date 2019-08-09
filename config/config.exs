@@ -3,4 +3,7 @@
 use Mix.Config
 
 config :coinbasepro,
-  endpoint: "https://api-public.sandbox.pro.coinbase.com"
+  endpoint: "https://api-public.sandbox.pro.coinbase.com",
+  api_key: "",
+  api_secret: "",
+  api_passphrase: ""
