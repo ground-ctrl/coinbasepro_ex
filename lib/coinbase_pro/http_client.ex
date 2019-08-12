@@ -49,6 +49,9 @@ defmodule CoinbasePro.HTTPClient do
       401 ->
         {:error, :unauthorized}
 
+      404 ->
+        {:error, {:not_found, "resource not found: make sure that the trading pair you are requesting exists"}}
+
       429 ->
         {:error, {:rate_limiting, "too many requests"}}
 
