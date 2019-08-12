@@ -61,6 +61,31 @@ defmodule CoinbasePro do
     end
   end
 
+
+  @doc """
+  Get the latest trade for a product.
+
+  ## Parameter
+   
+  - product: one of the pair ids returned by products()
+
+  ## Returns
+
+  A list of tuples with the following fields:
+  - time: time of the trade in unix timestamp (milliseconds)
+  - trade_id: unique id of the trade
+  - price: the price at which the transaction occured
+  - size: the number of units that were exchanged
+  - side: the maker order side "buy" or "sell"
+  """
+
+  def trades(product) do
+    case HTTPClient.get('/products/#{product}/trades') do
+      {:ok, trades} -> {:ok, Enum.map(trades, fn x -> CoinbasePro.Trade.new(x) end)}
+      err -> err
+    end
+  end
+
   @doc """
   Get historic rates of a product.
 
