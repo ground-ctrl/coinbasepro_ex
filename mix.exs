@@ -23,6 +23,7 @@ defmodule CoinbasePro.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:decimal, "~>1.7.0"},
       {:httpoison, "~> 1.5"},
       {:jason, "~> 1.1"},
     ]
