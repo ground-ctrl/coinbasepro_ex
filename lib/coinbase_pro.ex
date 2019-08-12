@@ -9,6 +9,20 @@ defmodule CoinbasePro do
   https://docs.pro.coinbase.com/
   """
 
+  @doc """
+  Get the list of trading accounts.
+  
+  ## Returns
+  
+  A list of structs with the following fields
+    - id: account id
+    - curency: currency of the account
+    - balance: funds in the account
+    - available: funds available to withdraw or trade
+    - hold: funds on hold, not available to use.
+    - profile_id: user id
+  """
+
   def accounts() do
     api_key = Application.get_env(:coinbasepro, :api_key)
     api_secret = Application.get_env(:coinbasepro, :api_secret)
@@ -19,6 +33,22 @@ defmodule CoinbasePro do
       err -> err
     end
   end
+
+  @doc """
+  Get a list of available currency pairs for trading.
+
+  ## Returns
+  
+  A list of structs with the following fields
+    - id: pair id
+    - base_currency: the currency being bought
+    - quote_currency: the currency used to buy
+    - base_min_size: minimum order size
+    - base_max_size: maximum order size
+    - quote_increment: increment of the order price
+
+  The order price must be a multiple of this increment price.
+  """
   
   def products() do
     case HTTPClient.get("/products") do
