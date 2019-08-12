@@ -28,9 +28,9 @@ defmodule CoinbasePro.Product do
       id: payload["id"],
       base_currency: payload["base_currency"],
       quote_currency: payload["quote_currency"],
-      base_min_size: payload["base_min_size"] |> String.to_float(),
-      base_max_size: payload["base_max_size"] |> String.to_float(),
-      quote_increment: payload["quote_increment"] |> String.to_float()
+      base_min_size: payload["base_min_size"] |> Decimal.new(),
+      base_max_size: payload["base_max_size"] |> Decimal.new(),
+      quote_increment: payload["quote_increment"] |> Decimal.new()
     }
   end
 end

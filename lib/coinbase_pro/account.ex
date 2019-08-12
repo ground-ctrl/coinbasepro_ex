@@ -27,9 +27,9 @@ defmodule CoinbasePro.Account do
     %CoinbasePro.Account{
       id: payload["id"],
       currency: payload["currency"],
-      balance: payload["balance"] |> String.to_float(),
-      available: payload["available"] |> String.to_float(),
-      hold: payload["hold"] |> String.to_float(),
+      balance: payload["balance"] |> Decimal.new(),
+      available: payload["available"] |> Decimal.new(),
+      hold: payload["hold"] |> Decimal.new(),
       profile_id: payload["profile_id"],
     }
   end
