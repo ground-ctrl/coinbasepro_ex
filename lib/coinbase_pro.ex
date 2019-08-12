@@ -3,14 +3,10 @@ defmodule CoinbasePro do
 
   @moduledoc """
   Elixir wrapper to Coinbase's Pro API.
-
-  The wrapper make no assumption about how you would like to deal with
-  prices, amounts, etc. down the line and returns Decimal representations
-  of the strings returned by the API.
-
-  Note on this topic that it is recommended to perform trades based on
-  computations on integers, and thus use satoshis and pips for currencies,
-  the `min_amount` handled by Coinbase as a quantity unit.
+  
+  - All floats, whether they are returned as floats or strings by the API
+    are represented as Decimal arbitrary precision numbers.
+  - All dates are represented as millisecond UNIX timestamps.
 
   ## Documentation
    
@@ -64,6 +60,76 @@ defmodule CoinbasePro do
       err -> err
     end
   end
+
+  @doc """
+  Get historic rates of a product.
+
+  ## Parameters
+  
+  - product: one of the pair ids returned by products()
+  - start: start time in unix timestamp (seconds)
+  - end: start time in unix timestamp (seconds)
+  - granularity: desired timeslice in seconds 
+
+  `granularity` must be one of {60, 300, 900, 3600, 21600, 86400} or the
+  request will be rejected. We pre-handle the rejection.
+
+  If the combination of start/end time and granularity will result in more that
+  300 candles the request will be rejected. We pre-handle the rejection.
+
+  If either `start_ts` or `end_ts` are not provided, the API will return the time range
+  ending now (with the provided granularity).
+  
+  ## Returns
+  
+  A list tuples with the following fiels:
+  - time: opening time of the timeslice in unix timestamp (milliseconds)
+  - low: lowest quote observed in the timeslice
+  - high: highest quote observed in the timeslice
+  - open: quote of the first transaction in the timeslice
+  - close: quote of the last transaction in the timeslice
+  - volume: volume traded in the timeslice
+  """
+
+  def candles(product, start_ts, end_ts, granularity)
+  when start_ts > end_ts do
+    {:error, {:input_error, "the end timestamp you specified is earlier than the start timestamp"}}
+  end
+
+
+  def candles(product, start_ts, end_ts, granularity)
+  when (end_ts - start_ts) / granularity > 300 do
+    {:error, {:input_error, "the API cannot return more than 300 results: reduce interval or granularity"}}
+  end
+
+
+  def candles(product, start_ts, end_ts, granularity) do
+    case Enum.member?([60, 300, 900, 3600, 21600, 86400], granularity) do 
+      false -> {:error, {:input_error, "granularity must be one of {60, 300, 900, 3600, 21600, 86400}"}}
+      true -> get_candles(product, start_ts, end_ts, granularity)
+    end
+  end
+
+  
+  def get_candles(product, start_ts, end_ts, granularity) do
+    start_date = start_ts 
+                 |> DateTime.from_unix!()
+                 |> DateTime.to_iso8601()
+    end_date = end_ts 
+               |> DateTime.from_unix!()
+               |> DateTime.to_iso8601()
+
+    params = %{
+      start: start_date,
+      end: end_date,
+      granularity: granularity
+    }
+    case HTTPClient.get('/products/#{product}/candles', params) do
+      {:ok, candles} -> {:ok, Enum.map(candles, fn x -> CoinbasePro.Candle.new(x) end)}
+      err -> err
+    end
+  end
+
 
   @doc """
   Get the list of known currencies know by Coinbase.

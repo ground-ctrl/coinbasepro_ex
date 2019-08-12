@@ -2,10 +2,12 @@ defmodule CoinbasePro.HTTPClient do
 
   @endpoint Application.get_env(:coinbasepro, :endpoint)
 
-  def get(url, headers \\ []) do
-    HTTPoison.get("#{@endpoint}#{url}", headers)
+  def get(url, params \\ %{}, headers \\ []) do
+    arguments = URI.encode_query(params) 
+    HTTPoison.get("#{@endpoint}#{url}?#{arguments}", headers)
     |> parse_coinbase_response()
   end
+
 
   def get(url, api_key, api_secret, api_passphrase) do
 
@@ -19,7 +21,7 @@ defmodule CoinbasePro.HTTPClient do
       {"CB-ACCESS-PASSPHRASE", api_passphrase}
     ]
     
-    get(url, headers)
+    get(url, %{}, headers)
 
   end
 
