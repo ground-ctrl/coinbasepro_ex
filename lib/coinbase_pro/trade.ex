@@ -1,7 +1,7 @@
 defmodule CoinbasePro.Trade do
 
   @moduledoc """
-  A trade as representated by Coinbase Pro's API.
+  A trade as represented by Coinbase Pro's API.
   According to the documentation, trades are sent in a payload of the form:
 
   [{

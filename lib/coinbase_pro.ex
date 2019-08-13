@@ -46,6 +46,65 @@ defmodule CoinbasePro do
   end
 
 
+  @doc """
+  Get the full transaction history of an account.
+
+  ## Returns
+   
+  A list of structs with the following fields:
+  - id: record id (Integer)
+  - created_at: date at which the transaction was recorded (Unix timestamp millisecond)
+  - amount (Decimal)
+  - balance: balance of the account after the transaction (Decimal)
+  - type: transaction type, one of {transfer, match, fee, rebate, conversion} (atom) 
+  - details: a struct that contains the order id, trade id and product id
+  
+  Since results are paginated, account_history returns a stream of history events.
+  """
+
+  def account_history(account_id) do
+    credentials = %{
+      api_key: Application.get_env(:coinbasepro, :api_key),
+      api_secret: Application.get_env(:coinbasepro, :api_secret),
+      api_passphrase: Application.get_env(:coinbasepro, :api_passphrase)
+    }
+
+    Stream.resource(
+      fn -> first_events(account_id, credentials) end,
+      fn x -> next_events(account_id, credentials, x) end,
+      fn _ -> nil end
+    )
+  end
+
+  defp first_events(account_id, credentials) do 
+    case HTTPClient.get_paginated("/accounts/#{account_id}/ledger", %{}, credentials) do
+      {:ok, body, page_number} ->
+        {Enum.map(body, fn x -> CoinbasePro.Account.History.new(x) end), page_number}
+      err ->
+        {:halt, err}
+    end
+  end
+
+  defp next_events(_account_id, _credentials, {nil, nil}) do
+    {:halt, nil}
+  end
+
+  defp next_events(account_id, credentials, {nil, next_page_number}) do
+    params = %{next: next_page_number} 
+    case HTTPClient.get_paginated("/accounts/#{account_id}/ledger", params, credentials) do
+      {:ok, body, page_number} ->
+        next_events(account_id, credentials, {Enum.map(body, fn x -> CoinbasePro.Account.History.new(x) end), page_number})
+      err ->
+        {:halt, err}
+    end
+  end
+
+  defp next_events(_account_id, _credentials, {items, next_page_number}) do
+    {items, {nil, next_page_number}}
+  end
+
+
+
   # -----------------------------------------------------
   # MARKET DATA
   # Unauthenticated endpoints for retrieving market data.
@@ -125,13 +184,16 @@ defmodule CoinbasePro do
   @doc """
   Get the latest trade for a product.
 
+  The trades are paginated; we return a stream that takes care of fetching the
+  pages when data are needed. The latest trades are served first.
+
   ## Parameter
    
   - product: one of the pair ids returned by products()
 
   ## Returns
 
-  A list of tuples with the following fields:
+  A stream of tuples with the following fields:
   - time: time of the trade in unix timestamp (milliseconds)
   - trade_id: unique id of the trade
   - price: the price at which the transaction occured
@@ -140,11 +202,40 @@ defmodule CoinbasePro do
   """
 
   def trades(product) do
-    case HTTPClient.get('/products/#{product}/trades') do
-      {:ok, trades} -> {:ok, Enum.map(trades, fn x -> CoinbasePro.Trade.new(x) end)}
-      err -> err
+    Stream.resource(
+      fn -> first_trades(product) end, 
+      fn x -> next_trades(product, x) end, 
+      fn _ -> nil end
+    )
+  end
+  
+  defp first_trades(product) do
+    case HTTPClient.get_paginated('/products/#{product}/trades') do
+      {:ok, trades, next_page} ->
+        {Enum.map(trades, fn x -> CoinbasePro.Trade.new(x) end), next_page}
+      err ->
+        {:halt, err}
     end
   end
+
+  defp next_trades(_product, {nil, nil}) do
+    {:halt, nil}
+  end
+
+  defp next_trades(product, {nil, page_number}) do
+    params = %{after: page_number}
+    case HTTPClient.get_paginated('/products/#{product}/trades', params) do
+      {:ok, trades, next_page} ->
+        next_trades(product, {Enum.map(trades, fn x -> CoinbasePro.Trade.new(x) end), next_page})
+      err ->
+        {:halt, err}
+    end
+  end
+
+  defp next_trades(_product, {items, page_number}) do
+    {items, {nil, page_number}}
+  end
+
 
   @doc """
   Get historic rates of a product.
@@ -176,13 +267,13 @@ defmodule CoinbasePro do
   - volume: volume traded in the timeslice
   """
 
-  def candles(product, start_ts, end_ts, granularity)
+  def candles(_product, start_ts, end_ts, _granularity)
   when start_ts > end_ts do
     {:error, {:input_error, "the end timestamp you specified is earlier than the start timestamp"}}
   end
 
 
-  def candles(product, start_ts, end_ts, granularity)
+  def candles(_product, start_ts, end_ts, granularity)
   when (end_ts - start_ts) / granularity > 300 do
     {:error, {:input_error, "the API cannot return more than 300 results: reduce interval or granularity"}}
   end
