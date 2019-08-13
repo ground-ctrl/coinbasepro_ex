@@ -13,6 +13,13 @@ defmodule CoinbasePro do
   https://docs.pro.coinbase.com/
   """
 
+  
+  # --------------------------------------
+  # PRIVATE
+  # Endpoints to manage accounts & orders.
+  # --------------------------------------
+
+
   @doc """
   Get the list of trading accounts.
 
@@ -38,6 +45,12 @@ defmodule CoinbasePro do
     end
   end
 
+
+  # -----------------------------------------------------
+  # MARKET DATA
+  # Unauthenticated endpoints for retrieving market data.
+  # -----------------------------------------------------
+
   @doc """
   Get a list of available currency pairs for trading.
 
@@ -61,6 +74,53 @@ defmodule CoinbasePro do
     end
   end
 
+
+  @doc """
+  Get a current snapshot of Coinbase Pro's order book.
+
+  The order book  is available at 3 levels:
+  - level 1: only best bid and best ask are represented
+  - level 2: top 50 bids and asks
+  - level 3: full order book
+
+  The aggregated levels return the number of bids/asks at the price level. The
+  size field is the sum of the sizes of the orders at that price.
+
+  Consider using websockets if you frequently poll level 3.
+  """
+
+  def order_book(product, level) do
+    case level do
+      1 -> order_book_level1(product)
+      2 -> order_book_level2(product)
+      3 -> order_book_level3(product)
+      _ -> {:error, {:argument_error, "level can only be one of {1, 2, 3}"}}
+    end
+  end
+
+  def order_book_level1(product) do
+    params = %{level: 1}
+    case HTTPClient.get("/products/#{product}/book", params)  do
+      {:ok, book} -> {:ok, CoinbasePro.Book.new_aggregated(book)}
+      err -> err
+    end
+  end
+
+  def order_book_level2(product) do
+    params = %{level: 2}
+    case HTTPClient.get("/products/#{product}/book", params)  do
+      {:ok, book} -> {:ok, CoinbasePro.Book.new_aggregated(book)}
+      err -> err
+    end
+  end
+
+  def order_book_level3(product) do
+    params = %{level: 3}
+    case HTTPClient.get("/products/#{product}/book", params)  do
+      {:ok, book} -> {:ok, CoinbasePro.Book.new(book)}
+      err -> err
+    end
+  end
 
   @doc """
   Get the latest trade for a product.
